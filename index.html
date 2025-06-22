@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Центр Медицинской Аналитики</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      color: #212529;
+    }
+    header {
+      background: #004080;
+      color: white;
+      text-align: center;
+      padding: 16px;
+    }
+    main {
+      max-width: 880px;
+      margin: 20px auto;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .tab-content {
+      margin-top: 20px;
+    }
+    input[type="file"], input[type="text"], button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      font-size: 15px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background: #004080;
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #002855;
+    }
+    .section {
+      border-left: 4px solid #004080;
+      padding: 10px;
+      background: #fdfdfd;
+      margin-bottom: 12px;
+      border-radius: 6px;
+    }
+    .warning {
+      border-left-color: #dc3545;
+      background: #f8d7da;
+      color: #842029;
+    }
+    .info {
+      border-left-color: #0d6efd;
+      background: #cfe2ff;
+      color: #084298;
+    }
+    .accent {
+      border-left-color: #ffc107;
+      background: #fff3cd;
+      color: #664d03;
+    }
+    #result, #mkbResult {
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Центр Медицинской Аналитики</h1>
+    <p>Проверка Excel и Подсказка по МКБ-10</p>
+  </header>
+  <main>
+    <div id="limited-access" class="tab-content">
+      <h2>🔍 Подсказка по МКБ-10 (ограниченный доступ)</h2>
+      <input type="text" id="mkbInput" placeholder="Введите код МКБ, например: J45">
+      <button onclick="getMKBHint()">Найти</button>
+      <div id="mkbResult" class="section"></div>
+      <div style="margin-top: 20px; text-align: center;">
+        🔒 У вас ограниченный доступ. <button onclick="requestAccess()">Запросить доступ</button>
+      </div>
+    </div>
+
+    <div id="full-access" class="tab-content" style="display:none">
+      <h2>📄 Проверка Excel</h2>
+      <input type="file" id="fileInput" accept=".xlsx">
+      <button onclick="uploadAndCheck()">🚀 Начать проверку</button>
+      <div id="status" class="section info"></div>
+      <a id="downloadLink" href="#" target="_blank" style="display:none"></a>
+    </div>
+  </main>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxszFXDDU3St98G00k6T7G42xq7oLLQhExcA-ZILuJNy01CLpYpDC4lSFPmBSf0iA/exec';
+
+    async function checkAccess() {
+      const res = await fetch(API_URL + '?action=checkAccess');
+      const data = await res.json();
+      if (data.access === 'full') {
+        document.getElementById('full-access').style.display = 'block';
+        document.getElementById('limited-access').style.display = 'none';
+      }
+    }
+
+    async function getMKBHint() {
+      const code = document.getElementById('mkbInput').value.trim();
+      if (!code) return alert('Введите код');
+      const res = await fetch(API_URL + '?action=mkbHint&code=' + encodeURIComponent(code));
+      const data = await res.json();
+      const el = document.getElementById('mkbResult');
+      el.textContent = data.hint || 'Нет подсказки';
+      el.style.display = 'block';
+    }
+
+    async function requestAccess() {
+      const email = prompt('Введите ваш email:');
+      if (!email) return;
+      await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'requestAccess', email }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      alert('Запрос отправлен');
+    }
+
+    async function uploadAndCheck() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      if (!file) return alert("Выберите файл");
+      const status = document.getElementById('status');
+      const link = document.getElementById('downloadLink');
+      status.textContent = '⏳ Проверка...';
+      link.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+      status.textContent = data.status || 'Готово';
+      if (data.downloadUrl) {
+        link.href = data.downloadUrl;
+        link.textContent = '📥 Скачать результат';
+        link.style.display = 'block';
+      }
+    }
+
+    checkAccess();
+  </script>
+</body>
+</html>
